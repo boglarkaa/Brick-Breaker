@@ -1,0 +1,226 @@
+<html>
+	<canvas id="gameCanvas" width="800" height="600"></canvas>
+	<script>
+		var canvas;
+		var canvasContext;
+
+		const PADDLE_HEIGHT = 10;
+		const PADDLE_WIDTH = 100;
+
+		var paddleSpeed = 20;
+		var paddleX = 400 - PADDLE_WIDTH / 2;
+
+		var ballX = 400;
+		var ballY = 250;
+		var ballSpeedX = 2;
+		var ballSpeedY = 10;
+
+		var bricks = [];
+		const BRICK_HEIGHT = 20;
+		const BRICK_WIDTH = 80;
+		const BRICK_ROWS = 8;
+		const BRICK_COLUMNS = 8;
+		const BRICK_GAP = 10;
+
+		var score = 0;
+		var showStartScreen = false;
+		var win = false;
+
+		for (var i = 0; i < BRICK_ROWS; i++) {
+			bricks[i] = [];
+			for (var j = 0; j < BRICK_COLUMNS; j++) {
+				bricks[i][j] = 1;
+			}
+		}
+
+		window.onload = function () {
+			canvas = document.getElementById("gameCanvas");
+			canvasContext = canvas.getContext("2d");
+			canvasContext.font = `15px Verdana`;
+			var framesPerSec = 30;
+			setInterval(function () {
+				moveBall();
+				draw();
+			}, 1000 / framesPerSec);
+			document.addEventListener("keydown", handleKeyDown);
+			document.addEventListener("mousedown", handleMouseClick);
+		};
+
+		function handleMouseClick(evt) {
+			if (showStartScreen) {
+				score = 0;
+				showStartScreen = !showStartScreen;
+			}
+		}
+
+		function handleKeyDown(evt) {
+			const key = evt.keyCode;
+
+			//left arrow
+			if (key == 37) {
+				if (paddleSpeed > 0) {
+					paddleSpeed = -paddleSpeed;
+				}
+				paddleX += paddleSpeed;
+			}
+
+			//right arrow
+			if (key == 39) {
+				if (paddleSpeed < 0) {
+					paddleSpeed = -paddleSpeed;
+				}
+				paddleX += paddleSpeed;
+			}
+
+			if (paddleX <= 0) {
+				paddleX = 0;
+			} else if (paddleX >= canvas.width - PADDLE_WIDTH) {
+				paddleX = canvas.width - PADDLE_WIDTH;
+			}
+		}
+
+		function moveBall() {
+			if (showStartScreen) {
+				return;
+			}
+
+			ballX += ballSpeedX;
+			ballY += ballSpeedY;
+
+			//ball hits the sides
+			if (ballX < 0 || ballX > canvas.width) {
+				ballSpeedX = -ballSpeedX;
+			}
+
+			if (ballY == 600 - PADDLE_HEIGHT - 10) {
+				//ball hits the paddle
+				if (ballX > paddleX && ballX < paddleX + PADDLE_WIDTH) {
+					ballSpeedY = -ballSpeedY;
+					var deltaX = ballX - (paddleX + PADDLE_WIDTH / 2);
+					ballSpeedX = deltaX * 0.35;
+				} else {
+					//reset
+					resetGame();
+				}
+			}
+
+			//ball hits the top
+			if (ballY == 0) {
+				ballSpeedY = -ballSpeedY;
+			}
+
+			//ball hits a brick
+			for (var i = 0; i < BRICK_ROWS; i++) {
+				for (var j = 0; j < BRICK_COLUMNS; j++) {
+					if (
+						//left edge
+						ballX > i * 100 + BRICK_GAP &&
+						//right edge
+						ballX < i * 100 + BRICK_GAP + BRICK_WIDTH &&
+						//bottom
+						ballY < j * 30 + BRICK_GAP + 50 &&
+						//it is still there
+						bricks[i][j] == 1
+					) {
+						ballSpeedY = -ballSpeedY;
+						bricks[i][j] = 0;
+						score++;
+						if (score == BRICK_COLUMNS * BRICK_ROWS) {
+							showStartScreen = true;
+							canvasContext.fillText("You won!", canvas.width / 2 - 30, 210);
+						}
+					}
+				}
+			}
+		}
+
+		function resetGame() {
+			showStartScreen = true;
+
+			ballX = canvas.width / 2;
+			ballY = canvas.height / 2;
+
+			ballSpeedX = 4;
+			ballSpeedY = 10;
+
+			paddleX = canvas.width / 2 - PADDLE_WIDTH / 2;
+
+			for (var i = 0; i < BRICK_ROWS; i++) {
+				bricks[i] = [];
+				for (var j = 0; j < BRICK_COLUMNS; j++) {
+					bricks[i][j] = 1;
+				}
+			}
+		}
+
+		function draw() {
+			//background
+			colorRect(0, 0, canvas.width, canvas.height, "black");
+			canvasContext.fillStyle = "white";
+			canvasContext.fillText("Score: " + score, canvas.width / 2 - 25, 15);
+			//show score and restart game
+			if (showStartScreen) {
+				canvasContext.fillStyle = "white";
+				canvasContext.fillText(
+					"Your score is: " + score,
+					canvas.width / 2 - 50,
+					230
+				);
+
+				canvasContext.fillText(
+					"Click to start game",
+					canvas.width / 2 - 55,
+					250
+				);
+				return;
+			}
+
+			//paddle
+			colorRect(
+				paddleX,
+				canvas.height - PADDLE_HEIGHT - 10,
+				PADDLE_WIDTH,
+				PADDLE_HEIGHT,
+				"LightSeaGreen"
+			);
+
+			//ball
+			colorCircle(ballX, ballY, 10, "yellow");
+
+			drawBricks();
+
+			if (showStartScreen) {
+				canvasContext.fillText();
+			}
+		}
+
+		function colorCircle(centerX, centerY, radius, color) {
+			canvasContext.fillStyle = color;
+			canvasContext.beginPath();
+			canvasContext.arc(centerX, centerY, radius, 0, Math.PI * 2, true);
+			canvasContext.fill();
+		}
+
+		function colorRect(leftX, topY, width, height, color) {
+			canvasContext.fillStyle = color;
+			canvasContext.fillRect(leftX, topY, width, height);
+		}
+
+		function drawBricks() {
+			for (var i = 0; i < BRICK_ROWS; i++) {
+				for (var j = 0; j < BRICK_COLUMNS; j++) {
+					//check if brick is still there
+					if (bricks[i][j] == 1) {
+						colorRect(
+							i * 100 + BRICK_GAP,
+							j * 30 + BRICK_GAP + 20,
+							BRICK_WIDTH,
+							BRICK_HEIGHT,
+							"LightSeaGreen"
+						);
+					}
+				}
+			}
+		}
+	</script>
+</html>
